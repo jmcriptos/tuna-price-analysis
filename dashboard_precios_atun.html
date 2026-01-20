@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Análisis de Precios - Atún en Lata | Curaçao Enero 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #0066cc;
+            --primary-light: #e6f2ff;
+            --secondary: #00a86b;
+            --secondary-light: #e6f9f2;
+            --warning: #ff9800;
+            --danger: #dc3545;
+            --text: #333;
+            --text-light: #666;
+            --bg: #f8f9fa;
+            --card-bg: #fff;
+            --border: #dee2e6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary), #004080);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 0.95rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--primary);
+        }
+        .kpi-card.secondary { border-left-color: var(--secondary); }
+        .kpi-card.warning { border-left-color: var(--warning); }
+        .kpi-card.danger { border-left-color: var(--danger); }
+        .kpi-label { font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--primary); margin: 0.25rem 0; }
+        .kpi-card.secondary .kpi-value { color: var(--secondary); }
+        .kpi-card.warning .kpi-value { color: var(--warning); }
+        .kpi-card.danger .kpi-value { color: var(--danger); }
+        .kpi-detail { font-size: 0.85rem; color: var(--text-light); }
+
+        /* Filters */
+        .filters-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .filters-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--primary); }
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .filter-group label { display: block; font-size: 0.8rem; color: var(--text-light); margin-bottom: 0.25rem; }
+        .filter-group select, .filter-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        .filter-group select:focus, .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+        .btn-reset {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+        }
+        .btn-reset:hover { background: #0055b3; }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .chart-card.full-width { grid-column: 1 / -1; }
+        .chart-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
+        .chart-container { position: relative; height: 300px; }
+        .chart-container.tall { height: 400px; }
+
+        /* Top Products */
+        .top-products-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 768px) { .top-products-grid { grid-template-columns: 1fr; } }
+        .product-list { list-style: none; }
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .product-item:last-child { border-bottom: none; }
+        .product-rank {
+            width: 28px;
+            height: 28px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-right: 0.75rem;
+        }
+        .product-info { flex: 1; }
+        .product-name { font-size: 0.9rem; font-weight: 500; }
+        .product-detail { font-size: 0.75rem; color: var(--text-light); }
+        .product-price { font-weight: 600; color: var(--secondary); }
+        .product-price.expensive { color: var(--danger); }
+
+        /* Data Table */
+        .table-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .table-count { font-size: 0.85rem; color: var(--text-light); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th {
+            background: var(--bg);
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover { background: #e9ecef; }
+        th.sorted-asc::after { content: ' ▲'; }
+        th.sorted-desc::after { content: ' ▼'; }
+        tr:hover { background: var(--primary-light); }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge-esperamos { background: #e3f2fd; color: #1976d2; }
+        .badge-centrum { background: #fce4ec; color: #c2185b; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Análisis de Precios de Atún en Lata</h1>
+        <p>Comparativa Esperamos vs Centrum | Curaçao - Enero 2026</p>
+    </div>
+
+    <div class="container">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Productos</div>
+                <div class="kpi-value" id="kpi-total">112</div>
+                <div class="kpi-detail">Analizados en 102 imágenes</div>
+            </div>
+            <div class="kpi-card secondary">
+                <div class="kpi-label">Precio Promedio</div>
+                <div class="kpi-value" id="kpi-avg">Cg <span id="avg-price">0.00</span></div>
+                <div class="kpi-detail">Por unidad</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Marca Más Económica</div>
+                <div class="kpi-value" id="kpi-cheap-brand" style="font-size: 1.4rem;">-</div>
+                <div class="kpi-detail" id="kpi-cheap-detail">Por precio/100g</div>
+            </div>
+            <div class="kpi-card secondary">
+                <div class="kpi-label">Supermercado Más Económico</div>
+                <div class="kpi-value" id="kpi-cheap-super" style="font-size: 1.4rem;">-</div>
+                <div class="kpi-detail" id="kpi-super-detail">Promedio por 100g</div>
+            </div>
+            <div class="kpi-card warning">
+                <div class="kpi-label">Mayor Diferencia de Precio</div>
+                <div class="kpi-value" id="kpi-diff" style="font-size: 1.3rem;">-</div>
+                <div class="kpi-detail" id="kpi-diff-detail">Mismo producto</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <div class="filters-title">Filtros</div>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>Supermercado</label>
+                    <select id="filter-super">
+                        <option value="">Todos</option>
+                        <option value="Esperamos">Esperamos</option>
+                        <option value="Centrum">Centrum</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Marca</label>
+                    <select id="filter-brand"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Tipo de Medio</label>
+                    <select id="filter-tipo"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Textura</label>
+                    <select id="filter-textura"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Precio Mín (Cg)</label>
+                    <input type="number" id="filter-price-min" placeholder="0" step="0.5">
+                </div>
+                <div class="filter-group">
+                    <label>Precio Máx (Cg)</label>
+                    <input type="number" id="filter-price-max" placeholder="50" step="0.5">
+                </div>
+                <div class="filter-group">
+                    <label>Peso Mín (g)</label>
+                    <input type="number" id="filter-weight-min" placeholder="0" step="10">
+                </div>
+                <div class="filter-group">
+                    <label>Peso Máx (g)</label>
+                    <input type="number" id="filter-weight-max" placeholder="2000" step="10">
+                </div>
+            </div>
+            <button class="btn-reset" onclick="resetFilters()">Restablecer Filtros</button>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">Precio Promedio por Marca (Cg/100g)</div>
+                <div class="chart-container"><canvas id="chart-brands"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Precio vs Peso por Marca</div>
+                <div class="chart-container"><canvas id="chart-scatter"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Distribución por Supermercado</div>
+                <div class="chart-container"><canvas id="chart-super"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Distribución por Tipo de Medio</div>
+                <div class="chart-container"><canvas id="chart-tipo"></canvas></div>
+            </div>
+            <div class="chart-card full-width">
+                <div class="chart-title">Comparativa de Precios por Marca y Supermercado</div>
+                <div class="chart-container tall"><canvas id="chart-heatmap"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="top-products-grid">
+            <div class="chart-card">
+                <div class="chart-title">Top 5 Más Económicos (por 100g)</div>
+                <ul class="product-list" id="top-cheap"></ul>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Top 5 Más Caros (por 100g)</div>
+                <ul class="product-list" id="top-expensive"></ul>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-section">
+            <div class="table-header">
+                <div class="chart-title">Todos los Productos</div>
+                <div class="table-count"><span id="filtered-count">0</span> de <span id="total-count">0</span> productos</div>
+            </div>
+            <table id="products-table">
+                <thead>
+                    <tr>
+                        <th data-sort="supermarket">Supermercado</th>
+                        <th data-sort="brand">Marca</th>
+                        <th data-sort="presentation">Presentación</th>
+                        <th data-sort="tipo_medio">Tipo</th>
+                        <th data-sort="weight_g">Peso (g)</th>
+                        <th data-sort="price">Precio (Cg)</th>
+                        <th data-sort="price_per_100g">Cg/100g</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        Análisis generado automáticamente | 102 imágenes procesadas | Enero 2026
+    </div>
+
+    <script>
+    // Data
+    const allData = [
+  {"id": 35, "image": "IMG_2912", "supermarket": "Esperamos", "brand": "Sa-Pac", "line": "", "presentation": "Shredded en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Desmenuzado", "weight_g": 185, "price": 1.88, "price_per_100g": 1.02, "promo_price": null},
+  {"id": 34, "image": "IMG_2911", "supermarket": "Esperamos", "brand": "Sa-Pac", "line": "", "presentation": "Shredded en Aceite", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 185, "price": 2.05, "price_per_100g": 1.11, "promo_price": null},
+  {"id": 89, "image": "IMG_2954", "supermarket": "Centrum", "brand": "Sa-Pac", "line": "", "presentation": "Tuna Shredded en Aceite", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 170, "price": 1.95, "price_per_100g": 1.15, "promo_price": null},
+  {"id": 45, "image": "IMG_2916", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "Tuna Light Flakes en Aceite de Oliva", "tipo_medio": "En Aceite de Oliva", "textura": "Desmenuzado", "weight_g": 170, "price": 2.15, "price_per_100g": 1.26, "promo_price": null},
+  {"id": 48, "image": "IMG_2917", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "Light Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 170, "price": 2.15, "price_per_100g": 1.26, "promo_price": null},
+  {"id": 84, "image": "IMG_2949", "supermarket": "Centrum", "brand": "Seafutura", "line": "", "presentation": "Light Meat Tuna Chunks en Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 185, "price": 2.58, "price_per_100g": 1.39, "promo_price": null},
+  {"id": 55, "image": "IMG_2923", "supermarket": "Esperamos", "brand": "Bala", "line": "", "presentation": "Chunks Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 1885, "price": 26.78, "price_per_100g": 1.42, "promo_price": null},
+  {"id": 85, "image": "IMG_2950", "supermarket": "Centrum", "brand": "Seafutura", "line": "", "presentation": "Light Meat Tuna Chunk en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 185, "price": 2.68, "price_per_100g": 1.45, "promo_price": null},
+  {"id": 46, "image": "IMG_2916", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "Tuna Light Chunk en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 170, "price": 2.48, "price_per_100g": 1.46, "promo_price": null},
+  {"id": 49, "image": "IMG_2917", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "Light Tuna en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 170, "price": 2.48, "price_per_100g": 1.46, "promo_price": null},
+  {"id": 105, "image": "IMG_2967", "supermarket": "Centrum", "brand": "Brunswick", "line": "", "presentation": "Tuna Flaked en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Desmenuzado", "weight_g": 142, "price": 2.08, "price_per_100g": 1.46, "promo_price": null},
+  {"id": 91, "image": "IMG_2955", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "Premium", "presentation": "Shredded Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 170, "price": 2.54, "price_per_100g": 1.49, "promo_price": null},
+  {"id": 36, "image": "IMG_2913", "supermarket": "Esperamos", "brand": "Sa-Pac", "line": "", "presentation": "Tuna Chunk en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 140, "price": 2.18, "price_per_100g": 1.56, "promo_price": null},
+  {"id": 100, "image": "IMG_2962", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "", "presentation": "Shredded Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Desmenuzado", "weight_g": 142, "price": 2.38, "price_per_100g": 1.68, "promo_price": null},
+  {"id": 51, "image": "IMG_2920", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos Food Service", "presentation": "Lomos de Atun en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 1730, "price": 30.35, "price_per_100g": 1.75, "promo_price": null},
+  {"id": 38, "image": "IMG_2914", "supermarket": "Esperamos", "brand": "Sa-Pac", "line": "", "presentation": "Tuna Shredded", "tipo_medio": "Otro", "textura": "Desmenuzado", "weight_g": 185, "price": 3.38, "price_per_100g": 1.83, "promo_price": null},
+  {"id": 97, "image": "IMG_2960", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "Premium", "presentation": "Chunk Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 170, "price": 3.18, "price_per_100g": 1.87, "promo_price": null},
+  {"id": 106, "image": "IMG_2967", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 3.18, "price_per_100g": 1.87, "promo_price": null},
+  {"id": 42, "image": "IMG_2915", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "Tuna Light Chunk en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 170, "price": 3.25, "price_per_100g": 1.91, "promo_price": null},
+  {"id": 104, "image": "IMG_2966", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 3.24, "price_per_100g": 1.91, "promo_price": null},
+  {"id": 90, "image": "IMG_2955", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "Premium", "presentation": "Chunk Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 170, "price": 3.29, "price_per_100g": 1.94, "promo_price": null},
+  {"id": 1, "image": "IMG_2876", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Ensalada con Atun, Maiz y Vegetales", "tipo_medio": "Con Vegetales", "textura": "Otro", "weight_g": 160, "price": 3.19, "price_per_100g": 1.99, "promo_price": null},
+  {"id": 92, "image": "IMG_2956", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "Premium", "presentation": "Solid Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Solido/Lomos", "weight_g": 170, "price": 3.39, "price_per_100g": 1.99, "promo_price": null},
+  {"id": 88, "image": "IMG_2953", "supermarket": "Centrum", "brand": "Sa-Pac", "line": "", "presentation": "Tuna Chunk en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 170, "price": 3.46, "price_per_100g": 2.04, "promo_price": null},
+  {"id": 53, "image": "IMG_2922", "supermarket": "Esperamos", "brand": "Perfect Catch", "line": "Premium", "presentation": "Chunk Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 1885, "price": 38.75, "price_per_100g": 2.06, "promo_price": null},
+  {"id": 9, "image": "IMG_2885", "supermarket": "Esperamos", "brand": "Bala", "line": "Flake Tuna", "presentation": "en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 150, "price": 3.1, "price_per_100g": 2.07, "promo_price": null},
+  {"id": 96, "image": "IMG_2960", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "Premium", "presentation": "Solid Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Solido/Lomos", "weight_g": 170, "price": 3.55, "price_per_100g": 2.09, "promo_price": null},
+  {"id": 101, "image": "IMG_2964", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "", "presentation": "Solid Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 142, "price": 2.99, "price_per_100g": 2.11, "promo_price": null},
+  {"id": 10, "image": "IMG_2887", "supermarket": "Esperamos", "brand": "Bala", "line": "Flake Tuna", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 150, "price": 3.2, "price_per_100g": 2.13, "promo_price": null},
+  {"id": 32, "image": "IMG_2910", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "Desmenuzado", "presentation": "Atun Desmenuzado al Natural", "tipo_medio": "En Agua/Salmuera", "textura": "Desmenuzado", "weight_g": 170, "price": 3.62, "price_per_100g": 2.13, "promo_price": null},
+  {"id": 50, "image": "IMG_2918", "supermarket": "Esperamos", "brand": "Roland", "line": "Solid Pack Light", "presentation": "Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 200, "price": 4.35, "price_per_100g": 2.17, "promo_price": null},
+  {"id": 108, "image": "IMG_2970", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 3.7, "price_per_100g": 2.18, "promo_price": null},
+  {"id": 52, "image": "IMG_2921", "supermarket": "Esperamos", "brand": "Tuny", "line": "Clasico", "presentation": "Aleta Amarilla en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 1880, "price": 41.48, "price_per_100g": 2.21, "promo_price": null},
+  {"id": 16, "image": "IMG_2893", "supermarket": "Esperamos", "brand": "PAN", "line": "", "presentation": "Trozos de Atun en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 150, "price": 3.35, "price_per_100g": 2.23, "promo_price": null},
+  {"id": 54, "image": "IMG_2922", "supermarket": "Esperamos", "brand": "Tuny", "line": "Clasico", "presentation": "Aleta Amarilla en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 1880, "price": 41.88, "price_per_100g": 2.23, "promo_price": null},
+  {"id": 98, "image": "IMG_2961", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "", "presentation": "Chunk Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 3.18, "price_per_100g": 2.24, "promo_price": null},
+  {"id": 102, "image": "IMG_2965", "supermarket": "Centrum", "brand": "Brunswick", "line": "", "presentation": "Tuna Chunk en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 3.24, "price_per_100g": 2.28, "promo_price": null},
+  {"id": 3, "image": "IMG_2878", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Atun en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 160, "price": 3.66, "price_per_100g": 2.29, "promo_price": null},
+  {"id": 4, "image": "IMG_2879", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Atun en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 160, "price": 3.66, "price_per_100g": 2.29, "promo_price": null},
+  {"id": 7, "image": "IMG_2882", "supermarket": "Esperamos", "brand": "Portside", "line": "Chunk Light", "presentation": "Tuna in Oil", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 142, "price": 3.25, "price_per_100g": 2.29, "promo_price": null},
+  {"id": 24, "image": "IMG_2902", "supermarket": "Esperamos", "brand": "Grace", "line": "Shredded Light", "presentation": "Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 3.25, "price_per_100g": 2.29, "promo_price": null},
+  {"id": 2, "image": "IMG_2877", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Ensalada de Atun con Champinones", "tipo_medio": "Ensalada", "textura": "Otro", "weight_g": 160, "price": 3.74, "price_per_100g": 2.34, "promo_price": null},
+  {"id": 111, "image": "IMG_2975", "supermarket": "Centrum", "brand": "Brunswick", "line": "", "presentation": "Tuna Smoke Flavour", "tipo_medio": "Ahumado", "textura": "Otro", "weight_g": 142, "price": 3.32, "price_per_100g": 2.34, "promo_price": null},
+  {"id": 112, "image": "IMG_2976", "supermarket": "Centrum", "brand": "Brunswick", "line": "", "presentation": "Tuna en Thai Chili Sauce", "tipo_medio": "Picante/Especias", "textura": "Otro", "weight_g": 142, "price": 3.32, "price_per_100g": 2.34, "promo_price": null},
+  {"id": 33, "image": "IMG_2910", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "Desmenuzado", "presentation": "Atun Desmenuzado en Aceite", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 170, "price": 4.05, "price_per_100g": 2.38, "promo_price": null},
+  {"id": 20, "image": "IMG_2898", "supermarket": "Esperamos", "brand": "Brunswick", "line": "", "presentation": "Tuna Chunk en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 142, "price": 3.39, "price_per_100g": 2.39, "promo_price": null},
+  {"id": 99, "image": "IMG_2961", "supermarket": "Centrum", "brand": "Perfect Catch", "line": "", "presentation": "Solid Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 142, "price": 3.44, "price_per_100g": 2.42, "promo_price": null},
+  {"id": 17, "image": "IMG_2895", "supermarket": "Esperamos", "brand": "Naturale", "line": "", "presentation": "Light Chunk Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 3.45, "price_per_100g": 2.43, "promo_price": null},
+  {"id": 93, "image": "IMG_2958", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Lomitos de Atun en Aceite", "tipo_medio": "En Aceite", "textura": "Solido/Lomos", "weight_g": 170, "price": 4.16, "price_per_100g": 2.45, "promo_price": null},
+  {"id": 94, "image": "IMG_2959", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Atun en Trozos en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 170, "price": 4.19, "price_per_100g": 2.46, "promo_price": null},
+  {"id": 95, "image": "IMG_2959", "supermarket": "Centrum", "brand": "Gomes da Costa", "line": "", "presentation": "Lomitos de Atun", "tipo_medio": "Otro", "textura": "Solido/Lomos", "weight_g": 170, "price": 4.19, "price_per_100g": 2.46, "promo_price": null},
+  {"id": 25, "image": "IMG_2903", "supermarket": "Esperamos", "brand": "Grace", "line": "Shredded Light", "presentation": "Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 142, "price": 3.53, "price_per_100g": 2.49, "promo_price": null},
+  {"id": 79, "image": "IMG_2945", "supermarket": "Centrum", "brand": "Blue Pacific", "line": "", "presentation": "Tuna Chunks con Vegetales", "tipo_medio": "Con Vegetales", "textura": "En Trozos", "weight_g": 142, "price": 3.54, "price_per_100g": 2.49, "promo_price": null},
+  {"id": 5, "image": "IMG_2880", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Atun en Aceite Oliva con Finas Hierbas", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 160, "price": 4.1, "price_per_100g": 2.56, "promo_price": null},
+  {"id": 6, "image": "IMG_2881", "supermarket": "Esperamos", "brand": "Van Camp's", "line": "Lomos", "presentation": "Atun en Aceite Oliva", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 160, "price": 4.1, "price_per_100g": 2.56, "promo_price": null},
+  {"id": 18, "image": "IMG_2896", "supermarket": "Esperamos", "brand": "Naturale", "line": "", "presentation": "Light Chunk Tuna en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 142, "price": 3.67, "price_per_100g": 2.58, "promo_price": null},
+  {"id": 78, "image": "IMG_2944", "supermarket": "Centrum", "brand": "Van Camp's", "line": "Lomitos", "presentation": "en Aceite de Oliva", "tipo_medio": "En Aceite de Oliva", "textura": "Otro", "weight_g": 160, "price": 4.17, "price_per_100g": 2.61, "promo_price": null},
+  {"id": 8, "image": "IMG_2884", "supermarket": "Esperamos", "brand": "Everyday", "line": "Tonijn", "presentation": "en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 200, "price": 5.25, "price_per_100g": 2.62, "promo_price": null},
+  {"id": 29, "image": "IMG_2907", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Chunk Tuna en Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 170, "price": 4.45, "price_per_100g": 2.62, "promo_price": null},
+  {"id": 31, "image": "IMG_2909", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Chunk Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 170, "price": 4.45, "price_per_100g": 2.62, "promo_price": null},
+  {"id": 39, "image": "IMG_2914", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "White Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 198, "price": 5.19, "price_per_100g": 2.62, "promo_price": null},
+  {"id": 19, "image": "IMG_2897", "supermarket": "Esperamos", "brand": "Brunswick", "line": "", "presentation": "Tuna Chunk en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 3.78, "price_per_100g": 2.66, "promo_price": null},
+  {"id": 15, "image": "IMG_2892", "supermarket": "Esperamos", "brand": "Blue Pacific", "line": "Tuna Chunks", "presentation": "con Vegetales", "tipo_medio": "Con Vegetales", "textura": "Otro", "weight_g": 140, "price": 3.75, "price_per_100g": 2.68, "promo_price": null},
+  {"id": 28, "image": "IMG_2906", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Solid Tuna en Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 170, "price": 4.68, "price_per_100g": 2.75, "promo_price": null},
+  {"id": 30, "image": "IMG_2908", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Solid Tuna en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Solido/Lomos", "weight_g": 170, "price": 4.68, "price_per_100g": 2.75, "promo_price": null},
+  {"id": 107, "image": "IMG_2970", "supermarket": "Centrum", "brand": "Geisha", "line": "", "presentation": "Light Meat Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 4.77, "price_per_100g": 2.81, "promo_price": null},
+  {"id": 82, "image": "IMG_2948", "supermarket": "Centrum", "brand": "Everyday", "line": "Tonijn-Thon", "presentation": "en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 185, "price": 5.26, "price_per_100g": 2.84, "promo_price": null},
+  {"id": 83, "image": "IMG_2948", "supermarket": "Centrum", "brand": "Everyday", "line": "Tonijn-Thon", "presentation": "en Agua/Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 185, "price": 5.26, "price_per_100g": 2.84, "promo_price": null},
+  {"id": 62, "image": "IMG_2931", "supermarket": "Centrum", "brand": "Jumbo", "line": "Tonijn Stukken", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 160, "price": 4.57, "price_per_100g": 2.86, "promo_price": null},
+  {"id": 80, "image": "IMG_2946", "supermarket": "Centrum", "brand": "Blue Pacific", "line": "", "presentation": "Tuna Chunks en Aceite", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 142, "price": 4.11, "price_per_100g": 2.89, "promo_price": null},
+  {"id": 81, "image": "IMG_2947", "supermarket": "Centrum", "brand": "Blue Pacific", "line": "", "presentation": "Tuna Chunks en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 4.11, "price_per_100g": 2.89, "promo_price": null},
+  {"id": 103, "image": "IMG_2966", "supermarket": "Centrum", "brand": "Brunswick", "line": "", "presentation": "Tuna Chunk en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 142, "price": 4.12, "price_per_100g": 2.9, "promo_price": null},
+  {"id": 22, "image": "IMG_2900", "supermarket": "Esperamos", "brand": "Geisha", "line": "", "presentation": "Light Meat Tuna Flakes en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 170, "price": 4.95, "price_per_100g": 2.91, "promo_price": null},
+  {"id": 13, "image": "IMG_2890", "supermarket": "Esperamos", "brand": "Blue Pacific", "line": "Tuna Chunks", "presentation": "en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 140, "price": 4.11, "price_per_100g": 2.94, "promo_price": null},
+  {"id": 14, "image": "IMG_2891", "supermarket": "Esperamos", "brand": "Blue Pacific", "line": "Tuna Chunks", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 140, "price": 4.11, "price_per_100g": 2.94, "promo_price": null},
+  {"id": 21, "image": "IMG_2899", "supermarket": "Esperamos", "brand": "Geisha", "line": "Solid Pack", "presentation": "Light Meat Tuna en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 185, "price": 5.45, "price_per_100g": 2.95, "promo_price": null},
+  {"id": 27, "image": "IMG_2905", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Solid Yellowfin Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 170, "price": 5.1, "price_per_100g": 3.0, "promo_price": null},
+  {"id": 110, "image": "IMG_2973", "supermarket": "Centrum", "brand": "Geisha", "line": "", "presentation": "Light Meat Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 5.21, "price_per_100g": 3.06, "promo_price": null},
+  {"id": 23, "image": "IMG_2901", "supermarket": "Esperamos", "brand": "Geisha", "line": "", "presentation": "Chunky Light Meat Tuna en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 170, "price": 5.25, "price_per_100g": 3.09, "promo_price": null},
+  {"id": 67, "image": "IMG_2936", "supermarket": "Centrum", "brand": "Statesman", "line": "Tonijnstukken", "presentation": "en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 160, "price": 4.95, "price_per_100g": 3.09, "promo_price": null},
+  {"id": 12, "image": "IMG_2889", "supermarket": "Esperamos", "brand": "Blue Pacific", "line": "Lomos", "presentation": "Atun en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 140, "price": 4.34, "price_per_100g": 3.1, "promo_price": null},
+  {"id": 109, "image": "IMG_2971", "supermarket": "Centrum", "brand": "Geisha", "line": "", "presentation": "Light Meat Tuna", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 170, "price": 5.37, "price_per_100g": 3.16, "promo_price": null},
+  {"id": 11, "image": "IMG_2888", "supermarket": "Esperamos", "brand": "Blue Pacific", "line": "Lomos", "presentation": "Atun en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 140, "price": 4.5, "price_per_100g": 3.21, "promo_price": null},
+  {"id": 47, "image": "IMG_2917", "supermarket": "Esperamos", "brand": "Grace", "line": "", "presentation": "Tuna Shred en Agua con Sal", "tipo_medio": "En Agua/Salmuera", "textura": "Desmenuzado", "weight_g": 99, "price": 3.25, "price_per_100g": 3.28, "promo_price": null},
+  {"id": 63, "image": "IMG_2932", "supermarket": "Centrum", "brand": "Bumble Bee", "line": "Chunk White Albacore", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 4.77, "price_per_100g": 3.36, "promo_price": null},
+  {"id": 56, "image": "IMG_2926", "supermarket": "Centrum", "brand": "Ocean Garden", "line": "", "presentation": "Tonijnstukken en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 160, "price": 5.43, "price_per_100g": 3.39, "promo_price": null},
+  {"id": 86, "image": "IMG_2951", "supermarket": "Centrum", "brand": "Seafutura", "line": "", "presentation": "Light Meat Tuna Chunk en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "En Trozos", "weight_g": 185, "price": 6.27, "price_per_100g": 3.39, "promo_price": null},
+  {"id": 87, "image": "IMG_2952", "supermarket": "Centrum", "brand": "Seafutura", "line": "", "presentation": "Light Meat Tuna Chunk en Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "En Trozos", "weight_g": 185, "price": 6.27, "price_per_100g": 3.39, "promo_price": null},
+  {"id": 57, "image": "IMG_2927", "supermarket": "Centrum", "brand": "Vis Marine", "line": "Tonijnstukken", "presentation": "en Salsa Picante", "tipo_medio": "Picante/Especias", "textura": "Otro", "weight_g": 160, "price": 5.59, "price_per_100g": 3.49, "promo_price": null},
+  {"id": 68, "image": "IMG_2937", "supermarket": "Centrum", "brand": "La Sirena", "line": "Atun", "presentation": "en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 140, "price": 4.88, "price_per_100g": 3.49, "promo_price": null},
+  {"id": 66, "image": "IMG_2935", "supermarket": "Centrum", "brand": "Bumble Bee", "line": "Chunk Light Tuna", "presentation": "en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 142, "price": 4.99, "price_per_100g": 3.51, "promo_price": null},
+  {"id": 59, "image": "IMG_2929", "supermarket": "Centrum", "brand": "Jumbo", "line": "Tonijn Stukken", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 160, "price": 5.69, "price_per_100g": 3.56, "promo_price": null},
+  {"id": 44, "image": "IMG_2916", "supermarket": "Esperamos", "brand": "Grace", "line": "", "presentation": "Tuna Shred en Aceite Vegetal", "tipo_medio": "En Aceite", "textura": "Desmenuzado", "weight_g": 99, "price": 3.53, "price_per_100g": 3.57, "promo_price": null},
+  {"id": 69, "image": "IMG_2937", "supermarket": "Centrum", "brand": "Deepblue", "line": "Tonijnstukken", "presentation": "en Aceite", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 160, "price": 5.8, "price_per_100g": 3.62, "promo_price": null},
+  {"id": 65, "image": "IMG_2934", "supermarket": "Centrum", "brand": "Bumble Bee", "line": "Chunk Light Tuna", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 5.44, "price_per_100g": 3.83, "promo_price": null},
+  {"id": 58, "image": "IMG_2928", "supermarket": "Centrum", "brand": "Jumbo", "line": "Tonijn Stukken", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 160, "price": 6.19, "price_per_100g": 3.87, "promo_price": null},
+  {"id": 37, "image": "IMG_2914", "supermarket": "Esperamos", "brand": "Gomes da Costa", "line": "", "presentation": "Solid Tuna en Salmuera", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 170, "price": 7.23, "price_per_100g": 4.25, "promo_price": null},
+  {"id": 60, "image": "IMG_2930", "supermarket": "Centrum", "brand": "Jumbo", "line": "Tonijn Stukken", "presentation": "en Aceite de Oliva", "tipo_medio": "En Aceite de Oliva", "textura": "Otro", "weight_g": 160, "price": 6.98, "price_per_100g": 4.36, "promo_price": null},
+  {"id": 61, "image": "IMG_2931", "supermarket": "Centrum", "brand": "Jumbo", "line": "Tonijn Stukken", "presentation": "Filanodos", "tipo_medio": "Otro", "textura": "Otro", "weight_g": 160, "price": 6.98, "price_per_100g": 4.36, "promo_price": null},
+  {"id": 75, "image": "IMG_2942", "supermarket": "Centrum", "brand": "Princes", "line": "Tonijnmoot", "presentation": "en Aceite de Girasol", "tipo_medio": "En Aceite", "textura": "Otro", "weight_g": 145, "price": 6.56, "price_per_100g": 4.52, "promo_price": null},
+  {"id": 77, "image": "IMG_2943", "supermarket": "Centrum", "brand": "Princes", "line": "Tonijnstukken", "presentation": "en Aceite de Oliva", "tipo_medio": "En Aceite de Oliva", "textura": "Otro", "weight_g": 160, "price": 7.57, "price_per_100g": 4.73, "promo_price": null},
+  {"id": 76, "image": "IMG_2942", "supermarket": "Centrum", "brand": "Princes", "line": "Tonijnmoot", "presentation": "en Aceite de Oliva Extra Virgen", "tipo_medio": "En Aceite de Oliva", "textura": "Otro", "weight_g": 145, "price": 7.73, "price_per_100g": 5.33, "promo_price": null},
+  {"id": 70, "image": "IMG_2939", "supermarket": "Centrum", "brand": "Princes", "line": "Tonijnsalade Mexicaans", "presentation": "Ensalada con Paprika", "tipo_medio": "Ensalada", "textura": "Otro", "weight_g": 160, "price": 8.69, "price_per_100g": 5.43, "promo_price": null},
+  {"id": 41, "image": "IMG_2915", "supermarket": "Esperamos", "brand": "Roland", "line": "", "presentation": "White Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 198, "price": 11.38, "price_per_100g": 5.75, "promo_price": null},
+  {"id": 71, "image": "IMG_2939", "supermarket": "Centrum", "brand": "Rio Mare", "line": "Insalatissime", "presentation": "Ensalada con Maiz", "tipo_medio": "Con Vegetales", "textura": "Otro", "weight_g": 160, "price": 9.26, "price_per_100g": 5.79, "promo_price": null},
+  {"id": 73, "image": "IMG_2940", "supermarket": "Centrum", "brand": "Princes", "line": "Tonijnsalade Couscous", "presentation": "Ensalada con Couscous", "tipo_medio": "Ensalada", "textura": "Otro", "weight_g": 160, "price": 9.26, "price_per_100g": 5.79, "promo_price": null},
+  {"id": 64, "image": "IMG_2933", "supermarket": "Centrum", "brand": "Bumble Bee", "line": "Solid White Albacore", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 8.35, "price_per_100g": 5.88, "promo_price": null},
+  {"id": 74, "image": "IMG_2941", "supermarket": "Centrum", "brand": "Rio Mare", "line": "Insalatissime", "presentation": "Ensalada con Maiz", "tipo_medio": "Con Vegetales", "textura": "Otro", "weight_g": 160, "price": 9.74, "price_per_100g": 6.09, "promo_price": null},
+  {"id": 26, "image": "IMG_2904", "supermarket": "Esperamos", "brand": "Roland", "line": "Low Sodium", "presentation": "Light Tuna Solid Pack en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Solido/Lomos", "weight_g": 170, "price": 10.38, "price_per_100g": 6.11, "promo_price": null},
+  {"id": 40, "image": "IMG_2915", "supermarket": "Esperamos", "brand": "Roland", "line": "Solid Yellowfin", "presentation": "Tuna en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 10.38, "price_per_100g": 7.31, "promo_price": null},
+  {"id": 43, "image": "IMG_2916", "supermarket": "Esperamos", "brand": "Roland", "line": "Solid Tuna Low Sodium", "presentation": "en Agua", "tipo_medio": "En Agua/Salmuera", "textura": "Otro", "weight_g": 142, "price": 10.38, "price_per_100g": 7.31, "promo_price": null},
+  {"id": 72, "image": "IMG_2940", "supermarket": "Centrum", "brand": "Rio Mare", "line": "Tonno", "presentation": "en Aceite de Oliva", "tipo_medio": "En Aceite de Oliva", "textura": "Otro", "weight_g": 80, "price": 12.12, "price_per_100g": 15.15, "promo_price": null}
+];
+
+    let filteredData = [...allData];
+    let sortColumn = 'price_per_100g';
+    let sortDirection = 'asc';
+    let charts = {};
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        populateFilters();
+        setupEventListeners();
+        updateDashboard();
+    });
+
+    function populateFilters() {
+        const brands = [...new Set(allData.map(d => d.brand))].sort();
+        const tipos = [...new Set(allData.map(d => d.tipo_medio))].sort();
+        const texturas = [...new Set(allData.map(d => d.textura))].sort();
+
+        const brandSelect = document.getElementById('filter-brand');
+        brandSelect.innerHTML = '<option value="">Todas</option>' + brands.map(b => `<option value="${b}">${b}</option>`).join('');
+
+        const tipoSelect = document.getElementById('filter-tipo');
+        tipoSelect.innerHTML = '<option value="">Todos</option>' + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+
+        const texturaSelect = document.getElementById('filter-textura');
+        texturaSelect.innerHTML = '<option value="">Todas</option>' + texturas.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+
+    function setupEventListeners() {
+        ['filter-super', 'filter-brand', 'filter-tipo', 'filter-textura', 'filter-price-min', 'filter-price-max', 'filter-weight-min', 'filter-weight-max'].forEach(id => {
+            document.getElementById(id).addEventListener('change', applyFilters);
+            document.getElementById(id).addEventListener('input', applyFilters);
+        });
+
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => sortTable(th.dataset.sort));
+        });
+    }
+
+    function applyFilters() {
+        const supermarket = document.getElementById('filter-super').value;
+        const brand = document.getElementById('filter-brand').value;
+        const tipo = document.getElementById('filter-tipo').value;
+        const textura = document.getElementById('filter-textura').value;
+        const priceMin = parseFloat(document.getElementById('filter-price-min').value) || 0;
+        const priceMax = parseFloat(document.getElementById('filter-price-max').value) || 999;
+        const weightMin = parseFloat(document.getElementById('filter-weight-min').value) || 0;
+        const weightMax = parseFloat(document.getElementById('filter-weight-max').value) || 9999;
+
+        filteredData = allData.filter(d =>
+            (!supermarket || d.supermarket === supermarket) &&
+            (!brand || d.brand === brand) &&
+            (!tipo || d.tipo_medio === tipo) &&
+            (!textura || d.textura === textura) &&
+            d.price >= priceMin && d.price <= priceMax &&
+            d.weight_g >= weightMin && d.weight_g <= weightMax
+        );
+
+        updateDashboard();
+    }
+
+    function resetFilters() {
+        document.querySelectorAll('.filter-group select').forEach(s => s.value = '');
+        document.querySelectorAll('.filter-group input').forEach(i => i.value = '');
+        filteredData = [...allData];
+        updateDashboard();
+    }
+
+    function updateDashboard() {
+        updateKPIs();
+        updateCharts();
+        updateTopProducts();
+        updateTable();
+    }
+
+    function updateKPIs() {
+        const total = filteredData.length;
+        const avgPrice = total > 0 ? (filteredData.reduce((sum, d) => sum + d.price, 0) / total).toFixed(2) : '0.00';
+
+        document.getElementById('kpi-total').textContent = total;
+        document.getElementById('avg-price').textContent = avgPrice;
+
+        // Cheapest brand by price/100g
+        const brandAvg = {};
+        filteredData.forEach(d => {
+            if (!brandAvg[d.brand]) brandAvg[d.brand] = { total: 0, count: 0 };
+            brandAvg[d.brand].total += d.price_per_100g;
+            brandAvg[d.brand].count++;
+        });
+        const brandAvgArr = Object.entries(brandAvg).map(([brand, data]) => ({ brand, avg: data.total / data.count }));
+        brandAvgArr.sort((a, b) => a.avg - b.avg);
+        if (brandAvgArr.length > 0) {
+            document.getElementById('kpi-cheap-brand').textContent = brandAvgArr[0].brand;
+            document.getElementById('kpi-cheap-detail').textContent = `Cg ${brandAvgArr[0].avg.toFixed(2)}/100g promedio`;
+        }
+
+        // Cheapest supermarket
+        const superAvg = {};
+        filteredData.forEach(d => {
+            if (!superAvg[d.supermarket]) superAvg[d.supermarket] = { total: 0, count: 0 };
+            superAvg[d.supermarket].total += d.price_per_100g;
+            superAvg[d.supermarket].count++;
+        });
+        const superAvgArr = Object.entries(superAvg).map(([s, data]) => ({ super: s, avg: data.total / data.count }));
+        superAvgArr.sort((a, b) => a.avg - b.avg);
+        if (superAvgArr.length > 0) {
+            document.getElementById('kpi-cheap-super').textContent = superAvgArr[0].super;
+            document.getElementById('kpi-super-detail').textContent = `Cg ${superAvgArr[0].avg.toFixed(2)}/100g promedio`;
+        }
+
+        // Price difference for similar products
+        let maxDiff = 0;
+        let maxDiffProduct = '';
+        const productGroups = {};
+        filteredData.forEach(d => {
+            const key = `${d.brand}-${d.weight_g}`;
+            if (!productGroups[key]) productGroups[key] = [];
+            productGroups[key].push(d);
+        });
+        Object.entries(productGroups).forEach(([key, products]) => {
+            if (products.length >= 2) {
+                const prices = products.map(p => p.price);
+                const diff = Math.max(...prices) - Math.min(...prices);
+                const pctDiff = (diff / Math.min(...prices)) * 100;
+                if (pctDiff > maxDiff) {
+                    maxDiff = pctDiff;
+                    maxDiffProduct = key.split('-')[0];
+                }
+            }
+        });
+        document.getElementById('kpi-diff').textContent = maxDiff > 0 ? `${maxDiff.toFixed(0)}%` : 'N/A';
+        document.getElementById('kpi-diff-detail').textContent = maxDiffProduct || 'Sin comparar';
+    }
+
+    function updateCharts() {
+        // Brand chart
+        const brandData = {};
+        filteredData.forEach(d => {
+            if (!brandData[d.brand]) brandData[d.brand] = { total: 0, count: 0 };
+            brandData[d.brand].total += d.price_per_100g;
+            brandData[d.brand].count++;
+        });
+        const brandLabels = Object.keys(brandData).sort((a, b) => (brandData[a].total/brandData[a].count) - (brandData[b].total/brandData[b].count));
+        const brandValues = brandLabels.map(b => (brandData[b].total / brandData[b].count).toFixed(2));
+
+        if (charts.brands) charts.brands.destroy();
+        charts.brands = new Chart(document.getElementById('chart-brands'), {
+            type: 'bar',
+            data: {
+                labels: brandLabels,
+                datasets: [{
+                    label: 'Cg/100g',
+                    data: brandValues,
+                    backgroundColor: 'rgba(0, 102, 204, 0.7)',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Scatter chart
+        const scatterData = filteredData.map(d => ({ x: d.weight_g, y: d.price, brand: d.brand }));
+        const brands = [...new Set(filteredData.map(d => d.brand))];
+        const colors = ['#0066cc', '#00a86b', '#ff9800', '#dc3545', '#6c757d', '#17a2b8', '#28a745', '#ffc107', '#343a40', '#e83e8c'];
+
+        if (charts.scatter) charts.scatter.destroy();
+        charts.scatter = new Chart(document.getElementById('chart-scatter'), {
+            type: 'scatter',
+            data: {
+                datasets: brands.slice(0, 10).map((brand, i) => ({
+                    label: brand,
+                    data: scatterData.filter(d => d.brand === brand).map(d => ({ x: d.x, y: d.y })),
+                    backgroundColor: colors[i % colors.length],
+                    pointRadius: 6
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } },
+                scales: {
+                    x: { title: { display: true, text: 'Peso (g)' } },
+                    y: { title: { display: true, text: 'Precio (Cg)' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // Supermarket distribution
+        const superCount = {};
+        filteredData.forEach(d => superCount[d.supermarket] = (superCount[d.supermarket] || 0) + 1);
+
+        if (charts.super) charts.super.destroy();
+        charts.super = new Chart(document.getElementById('chart-super'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(superCount),
+                datasets: [{
+                    data: Object.values(superCount),
+                    backgroundColor: ['#0066cc', '#e91e63']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Type distribution
+        const tipoCount = {};
+        filteredData.forEach(d => tipoCount[d.tipo_medio] = (tipoCount[d.tipo_medio] || 0) + 1);
+
+        if (charts.tipo) charts.tipo.destroy();
+        charts.tipo = new Chart(document.getElementById('chart-tipo'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(tipoCount),
+                datasets: [{
+                    data: Object.values(tipoCount),
+                    backgroundColor: ['#0066cc', '#00a86b', '#ff9800', '#dc3545', '#6c757d', '#17a2b8', '#28a745', '#ffc107']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } }
+            }
+        });
+
+        // Heatmap (Brand vs Supermarket)
+        const heatmapData = {};
+        const allBrands = [...new Set(filteredData.map(d => d.brand))].sort();
+        const supers = ['Esperamos', 'Centrum'];
+
+        allBrands.forEach(brand => {
+            heatmapData[brand] = {};
+            supers.forEach(s => {
+                const items = filteredData.filter(d => d.brand === brand && d.supermarket === s);
+                heatmapData[brand][s] = items.length > 0 ? (items.reduce((sum, d) => sum + d.price_per_100g, 0) / items.length).toFixed(2) : null;
+            });
+        });
+
+        if (charts.heatmap) charts.heatmap.destroy();
+        charts.heatmap = new Chart(document.getElementById('chart-heatmap'), {
+            type: 'bar',
+            data: {
+                labels: allBrands,
+                datasets: supers.map((s, i) => ({
+                    label: s,
+                    data: allBrands.map(b => heatmapData[b][s]),
+                    backgroundColor: i === 0 ? 'rgba(0, 102, 204, 0.7)' : 'rgba(233, 30, 99, 0.7)'
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { ticks: { maxRotation: 45, minRotation: 45 } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Cg/100g' } }
+                }
+            }
+        });
+    }
+
+    function updateTopProducts() {
+        const sorted = [...filteredData].sort((a, b) => a.price_per_100g - b.price_per_100g);
+
+        const cheapList = document.getElementById('top-cheap');
+        cheapList.innerHTML = sorted.slice(0, 5).map((d, i) => `
+            <li class="product-item">
+                <span class="product-rank">${i + 1}</span>
+                <div class="product-info">
+                    <div class="product-name">${d.brand} ${d.line || ''}</div>
+                    <div class="product-detail">${d.presentation.substring(0, 40)}... | ${d.weight_g}g | ${d.supermarket}</div>
+                </div>
+                <div class="product-price">Cg ${d.price_per_100g}/100g</div>
+            </li>
+        `).join('');
+
+        const expensiveList = document.getElementById('top-expensive');
+        expensiveList.innerHTML = sorted.slice(-5).reverse().map((d, i) => `
+            <li class="product-item">
+                <span class="product-rank">${i + 1}</span>
+                <div class="product-info">
+                    <div class="product-name">${d.brand} ${d.line || ''}</div>
+                    <div class="product-detail">${d.presentation.substring(0, 40)}... | ${d.weight_g}g | ${d.supermarket}</div>
+                </div>
+                <div class="product-price expensive">Cg ${d.price_per_100g}/100g</div>
+            </li>
+        `).join('');
+    }
+
+    function sortTable(column) {
+        if (sortColumn === column) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = column;
+            sortDirection = 'asc';
+        }
+
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+        });
+        document.querySelector(`th[data-sort="${column}"]`).classList.add(`sorted-${sortDirection}`);
+
+        updateTable();
+    }
+
+    function updateTable() {
+        const sorted = [...filteredData].sort((a, b) => {
+            let valA = a[sortColumn];
+            let valB = b[sortColumn];
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        document.getElementById('filtered-count').textContent = sorted.length;
+        document.getElementById('total-count').textContent = allData.length;
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = sorted.map(d => `
+            <tr>
+                <td><span class="badge badge-${d.supermarket.toLowerCase()}">${d.supermarket}</span></td>
+                <td><strong>${d.brand}</strong></td>
+                <td>${d.presentation}</td>
+                <td>${d.tipo_medio}</td>
+                <td>${d.weight_g}</td>
+                <td>Cg ${d.price.toFixed(2)}</td>
+                <td><strong>Cg ${d.price_per_100g.toFixed(2)}</strong></td>
+            </tr>
+        `).join('');
+    }
+    </script>
+</body>
+</html>
